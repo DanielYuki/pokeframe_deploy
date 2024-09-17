@@ -169,6 +169,8 @@ app.frame('/battle-create', async (c) => {
 app.frame("/battle-join/list/:position", async (c) => {
   // const waitingBattles = await getOpenBattles();
   const waitingBattles = await getBattlesByStatus('waiting');
+
+  //TODO: If there are no waiting battles, show a message
   const totalBattles = waitingBattles.length;
 
   const position = Number(c.req.param('position'));

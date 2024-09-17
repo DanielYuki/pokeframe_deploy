@@ -47,8 +47,10 @@ export const welcomeGift = async (userFid:number, userAddress:string) => {
   })
 
   if(response.ok) {
+    console.log("Sent welcome gift");
     return "Sent welcome gift";
   } else {
+    console.error("Failed to send welcome gift");
     return "Failed to send welcome gift";
   }
 }
