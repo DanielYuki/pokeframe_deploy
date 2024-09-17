@@ -395,7 +395,7 @@ app.frame('/battle/:gameId/join', async (c) => {
 
   return c.res({
     title,
-    image: `/images/loading.gif`,
+    image: `/images/transaction-loading.png`,
     imageAspectRatio: '1:1',
     intents: [
       <Button action={`/battle/${gameId}/join`}>REFRESH 🔄️</Button>,
@@ -812,7 +812,7 @@ app.frame('/loading', async (c) => {
   }
   return c.res({
     title,
-    image: `/images/loading.gif`,
+    image: `/images/transaction-loading.png`,
     imageAspectRatio: '1:1',
     intents: [
       <Button action={`/loading`}>REFRESH 🔄️</Button>,
@@ -833,7 +833,7 @@ app.frame('/finish-mint', async (c) => {
   if (pokemonId == 0) {
     return c.res({
       title,
-      image: '/images/loading.gif',
+      image: '/images/transaction-loading.png',
       imageAspectRatio: '1:1',
       intents: [
         <Button action={`/finish-mint`}>REFRESH 🔄️</Button>,
