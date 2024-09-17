@@ -66,7 +66,7 @@ export const getPokemonName = async (pokemonId : number) => {
 
 let isCreatingBattle = false;
 
-export const createBattle = async (maker: number, maker_pokemons: number[]) => {
+export const createBattle = async (maker: number, maker_pokemons: number[], isCompetitive: boolean) => {
   if(!isCreatingBattle) {
     isCreatingBattle = true;
     const response = await fetch(`${BACKEND_URL}/create-battle`, {
@@ -74,7 +74,7 @@ export const createBattle = async (maker: number, maker_pokemons: number[]) => {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ maker, maker_pokemons: JSON.stringify(maker_pokemons) })
+      body: JSON.stringify({ maker, maker_pokemons: JSON.stringify(maker_pokemons), isCompetitive: isCompetitive ? 1 : 0 })
     })
   
     if(response.ok) {
@@ -120,6 +120,12 @@ export const joinBattle = async (battleId: number, taker: number, taker_pokemons
   } else {
     return "Already joining battle";
   }
+}
+
+export const checkBattleCasual = async (battleId: number) => {
+  const battle = await getBattleById(battleId);
+
+  return battle.is_competitive === 0;
 }
 
 export const forfeitBattle = async (battleId: number, userFid: number) => {
