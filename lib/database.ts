@@ -176,3 +176,11 @@ export const makeMove = async (battleId: number, userFid: number, move: number) 
     return "Failed to make move";
   }
 }
+
+export const getOpenBattles = async () => {
+  const response = await fetch(`${BACKEND_URL}/get/waiting`);
+
+  const data = await response.json();
+
+  return data.battles as number[];
+}

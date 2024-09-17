@@ -5,10 +5,10 @@ import { publicClient } from '../lib/contracts.js';
 import { devtools } from 'frog/dev';
 import { handle } from 'frog/vercel';
 import { serve } from '@hono/node-server';
-import { assignPokemonToUser, createBattle, getBattleById, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, checkBattleCasual } from '../lib/database.js';
+import { assignPokemonToUser, createBattle, getBattleById, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, checkBattleCasual, getOpenBattles } from '../lib/database.js';
 import { SHARE_INTENT, SHARE_TEXT, SHARE_EMBEDS, FRAME_URL, SHARE_GACHA, title, CHAIN_ID, CONTRACT_ADDRESS, POKEMON_CONTRACT_ADDRESS, BATTLE_CONTRACT_ADDRESS } from '../config.js';
 import { boundIndex } from '../lib/utils/boundIndex.js';
-import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu } from '../image-generation/generators.js';
+import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList } from '../image-generation/generators.js';
 import { getPlayers, verifyMakerOrTaker } from '../lib/utils/battleUtils.js';
 import { handleFrameLog } from '../lib/utils/handleFrameLog.js';
 import { validateFramesPost } from '@xmtp/frames-validator';
@@ -131,12 +131,76 @@ app.frame('/battle', async (c) => {
     image: '/images/battle3.png',
     imageAspectRatio: '1:1',
     intents: [
+      <Button action={`/battle-create`}>CREATE NEW BATTLE</Button>,
+      <Button action={`/battle-join`}>JOIN A BATTLE</Button>,
+      <Button action={`/verify`}>↩️</Button>,
+    ],
+  })
+})
+
+app.frame('/battle-create', async (c) => {
+  // const { frameData } = c;
+  // const fid = frameData?.fid;
+  // const { verifiedAddresses } = c.previousState ? c.previousState : await getFarcasterUserInfo(fid);
+  // const playerAddress = verifiedAddresses[0] as `0x${string}`;
+
+  // set isMaker to true
+  c.deriveState((prevState: any) => {
+    prevState.isMaker = true;
+    prevState.selectedPokemons = [];
+  });
+
+  return c.res({
+    title,
+    image: '/images/battle3.png',
+    imageAspectRatio: '1:1',
+    intents: [
       <Button value='casual' action={`/pokemons/0/0`}>CASUAL</Button>,
       <Button value='competitive' action={`/pokemons/0/0`}>COMPETITIVE</Button>,
       <Button action={`/verify`}>↩️</Button>,
     ],
   })
 })
+
+app.frame('/battle-join', async (c) => {
+  return c.res({
+    title,
+    image: `/images/bocover.png`,
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button action={`/battle-join/list/0`}>Search battles</Button>,
+    ],
+  });
+})
+
+app.frame("/battle-join/list/:position", async (c) => {
+  const waitingBattles = await getOpenBattles();
+  const totalBattles = waitingBattles.length;
+
+  const position = Number(c.req.param('position'));
+  const battle = await getBattleById(waitingBattles[position]);
+  const battlePokemons = battle.maker_pokemons.map((pokemon: any) => pokemon.id);
+
+  const getNextIndex = (currentIndex: any) => (currentIndex + 1) % totalBattles;
+  const getPreviousIndex = (currentIndex: any) => (currentIndex - 1 + totalBattles) % totalBattles;
+
+  const nextBattleId = getNextIndex(position);
+  const previousBattleId = getPreviousIndex(position);
+
+  console.log("next", nextBattleId);
+  console.log("previous", previousBattleId);
+
+  return c.res({
+    title,
+    image: `/image/battlelist/${battlePokemons[0]}/${battlePokemons[1]}/${battlePokemons[2]}`,
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button action={`/battle-join/list/${previousBattleId}`}>⬅️</Button>,
+      <Button action={`/battle/share/${waitingBattles[position]}`}>✅</Button>,
+      <Button action={`/battle-join/list/${nextBattleId}`}>➡️</Button>,
+    ],
+  });
+});
 
 app.frame('/pokemons/:position/:index', async (c) => {
   const { frameData, buttonValue } = c;
@@ -1141,6 +1205,24 @@ app.hono.get('/image/fight/:gameId/user/:userFid', async (c) => {
     return c.newResponse(image, 200, {
       'Content-Type': 'image/png',
       'Cache-Control': 'max-age=0', //try no-cache later
+    });
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return c.newResponse("Error generating image", 500);
+  }
+});
+
+app.hono.get('/image/battlelist/:p1/:p2/:p3', async (c) => {
+  try {
+    const p1 = Number(c.req.param('p1'));
+    const p2 = Number(c.req.param('p2'));
+    const p3 = Number(c.req.param('p3'));
+
+    const image = await generateBattleList([p1,p2,p3]);
+
+    return c.newResponse(image, 200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'max-age=0', 
     });
   } catch (error) {
     console.error("Error generating image:", error);
