@@ -8,7 +8,7 @@ import { serve } from '@hono/node-server';
 import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, getPokemonById, checkBattleCasual } from '../lib/database.js';
 import { SHARE_INTENT, SHARE_TEXT, SHARE_EMBEDS, FRAME_URL, SHARE_GACHA, title, CHAIN_ID, CONTRACT_ADDRESS, POKEMON_CONTRACT_ADDRESS, BATTLE_CONTRACT_ADDRESS } from '../config.js';
 import { boundIndex } from '../lib/utils/boundIndex.js';
-import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList, generateBattleListV0, generateLastTurnBattleLog, generateTrending } from '../image-generation/generators.js';
+import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList, generateBattleListV0, generateLastTurnBattleLog, generateTrending, generateBattleReady } from '../image-generation/generators.js';
 import { getPlayers, verifyMakerOrTaker } from '../lib/utils/battleUtils.js';
 import { handleFrameLog } from '../lib/utils/handleFrameLog.js';
 import { validateFramesPost } from '@xmtp/frames-validator';
@@ -347,7 +347,7 @@ app.frame('/battle/handle', async (c) => {
           image: `/images/go!.png`,
           imageAspectRatio: '1:1',
           intents: [
-            <Button action={`/finish-battle-create`}>GO! 🔥</Button>,
+            <Button action={`/finish-battle-create`}>BATTLE! 🔥</Button>,
           ],
         })
       }
@@ -476,10 +476,10 @@ app.frame('/battle/:gameId/join', async (c) => {
       if (transactionReceipt?.status === 'success') {
         return c.res({
           title,
-          image: `/images/go!.png`,
+          image: `/image/battleready/${gameId}.png`,
           imageAspectRatio: '1:1',
           intents: [
-            <Button value={gameId.toString()} action={`/finish-battle-join`}>GO! 🔥</Button>,
+            <Button value={gameId.toString()} action={`/finish-battle-join`}>Battle! 🔥</Button>,
           ],
         })
       }
@@ -524,7 +524,7 @@ app.frame('/finish-battle-join', async (c) => {
 
   return c.res({
     title,
-    image: `/images/go!.png`,
+    image: `/image/battleready/${gameId}.png`,
     imageAspectRatio: '1:1',
     intents: [
       <Button action={`/battle/${gameId}`}>BATTLE⚔️</Button>,
@@ -1192,6 +1192,28 @@ app.hono.get('/image/vs/:gameId/user/:userFid', async (c) => {
     return c.newResponse("Error generating image", 500);
   }
 });
+
+app.hono.get('/image/battleready/:gameId', async (c) => {
+  try {
+    const battle: any = await getBattleById(Number(c.req.param('gameId')));
+    const makerPokemons = battle.maker_pokemons;
+    const takerPokemons = battle.taker_pokemons;
+    // console.log(attacks);
+    // review logic when theres only one battling pokemon left
+    const image = await generateBattleReady(
+      makerPokemons,
+      takerPokemons
+    );
+
+    return c.newResponse(image, 200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'max-age=0', //try no-cache later
+    });
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return c.newResponse("Error generating image", 500);
+  }
+})
 
 app.hono.get('/image/pokemenu/:gameId/user/:userFid', async (c) => {
   try {
