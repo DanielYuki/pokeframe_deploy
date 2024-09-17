@@ -235,6 +235,88 @@ export const generateWaitingRoom = async (
   }
 }
 
+export const generateBattleList = async (data: { battles: any[] }) => {
+  try {
+    const { battles } = data;
+
+    if (!Array.isArray(battles)) {
+      throw new Error('Invalid data: battles must be an array.');
+    }
+
+    const ComponentsArray: sharp.OverlayOptions[] = [];
+
+    // Load the base image
+    const baseImageBuffer = await sharp(join(__dirname, '../public/images/battle-scenes/0.png')) //TODO: Change for the correct image
+      .resize(600, 600)
+      .png()
+      .toBuffer();
+
+    for (const [index, battle] of battles.entries()) {
+      const battleId = battle.id;
+      const maker = battle.maker;
+      const makerPokemons = JSON.parse(battle.maker_pokemons);
+      const pokemonIds = makerPokemons.map((pokemon: { id: number }) => pokemon.id);
+      const isCompetitive = battle.is_competitive ? 'Competitive' : 'Casual';
+
+      console.log(pokemonIds); // [1, 2, 3]
+
+      // Create SVG for each battle property
+      const makerSVG = `
+        <svg width="600" height="50">
+          <text x="10" y="40" font-size="30" fill="white">${maker}</text>
+        </svg>
+        `;// TODO: Change for the user name
+
+      const isCompetitiveSVG = `
+      <svg width="600" height="50">
+      <text x="10" y="40" font-size="30" fill="white">${isCompetitive}</text>
+      </svg>
+      `;
+      const battleIdSVG = `
+        <svg width="600" height="50">
+          <text x="10" y="40" font-size="30" fill="white">${battleId}</text>
+        </svg>
+        `;
+      
+      const usr1ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/icons/${pokemonIds[0]}.png`))
+        .resize(100, 100)
+        .png()
+        .toBuffer();
+      const usr2ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/icons/${pokemonIds[1]}.png`))
+        .resize(100, 100)
+        .png()
+        .toBuffer();
+      const usr3ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/icons/${pokemonIds[2]}.png`))
+        .resize(100, 100)
+        .png()
+        .toBuffer();
+
+      // Calculate the vertical position for each block
+      const verticalOffset = 50 + (50 * index);
+
+      // Add components to the array with calculated positions
+      ComponentsArray.push({ input: Buffer.from(makerSVG), top: verticalOffset, left: 30 });
+      ComponentsArray.push({ input: usr1ImageBuffer, top: verticalOffset - 50, left: 200 });
+      ComponentsArray.push({ input: usr2ImageBuffer, top: verticalOffset - 50, left: 250 });
+      ComponentsArray.push({ input: usr3ImageBuffer, top: verticalOffset - 50, left: 300 });
+      ComponentsArray.push({ input: Buffer.from(isCompetitiveSVG), top: verticalOffset, left: 400 });
+      ComponentsArray.push({ input: Buffer.from(battleIdSVG), top: verticalOffset, left: 550 });
+    }
+
+    // Composite the final image
+    const finalImage = await sharp(baseImageBuffer)
+      .composite(ComponentsArray)
+      .png()
+      .toBuffer();
+
+    return finalImage;
+  } catch (error) {
+    console.error('Error during battle checkout generation:', error);
+    throw error;
+  }
+};
+
+
 function prettyName(inputString: string): string {
   let lowerString = inputString.toLowerCase();
   let resultString = lowerString.charAt(0).toUpperCase() + lowerString.slice(1);
