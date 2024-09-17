@@ -34,7 +34,7 @@ export const getFarcasterUserInfo = (async (
     return { pfp_url, userName, verifiedAddresses };
 })
 
-export const getFarcasterUserInfoByAddress = async (address: `0x${string}`) => {
+export const getFarcasterUserInfoByAddress = (async (address: `0x${string}`) => {
     const userInfo = await Lum0x.farcasterUser.getUserByBulkAddress({
         addresses: address,
         address_types: "verified_address",
@@ -48,4 +48,15 @@ export const getFarcasterUserInfoByAddress = async (address: `0x${string}`) => {
       users[addressLowerCase]?.[0].verified_addresses.eth_addresses || [];
   
     return { pfp_url, userName, verifiedAddresses };
-  };
+  })
+
+  export const getPlayersInfo = (async (
+    fids: number[]
+  ) => {
+    const res = await Lum0x.farcasterUser.getUserByFids({
+      fids: String(fids),
+    })
+    console.log(res);
+    const { users } = res;
+    return { users };
+})
