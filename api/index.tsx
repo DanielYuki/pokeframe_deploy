@@ -5,7 +5,7 @@ import { publicClient } from '../lib/contracts.js';
 import { devtools } from 'frog/dev';
 import { handle } from 'frog/vercel';
 import { serve } from '@hono/node-server';
-import { assignPokemonToUser, createBattle, getBattleById, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle } from '../lib/database.js';
+import { assignPokemonToUser, createBattle, getBattleById, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, checkBattleCasual } from '../lib/database.js';
 import { SHARE_INTENT, SHARE_TEXT, SHARE_EMBEDS, FRAME_URL, SHARE_GACHA, title, CHAIN_ID, CONTRACT_ADDRESS, POKEMON_CONTRACT_ADDRESS, BATTLE_CONTRACT_ADDRESS } from '../config.js';
 import { boundIndex } from '../lib/utils/boundIndex.js';
 import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu } from '../image-generation/generators.js';
@@ -26,6 +26,8 @@ type State = {
   joinableBattleId?: number;
   isLoading?: boolean;
   hasMoved?: boolean;
+  isCasual?: boolean;
+  isCompetitive?: boolean;
 }
 
 const addMetaTags = (client: string, version?: string) => {
@@ -128,7 +130,8 @@ app.frame('/battle', async (c) => {
     image: '/images/battle3.png',
     imageAspectRatio: '1:1',
     intents: [
-      <Button action={`/pokemons/0/0`}>POKEMONS</Button>,
+      <Button value='casual' action={`/pokemons/0/0`}>CASUAL</Button>,
+      <Button value='competitive' action={`/pokemons/0/0`}>COMPETITIVE</Button>,
       <Button action={`/verify`}>↩️</Button>,
     ],
   })
@@ -138,12 +141,26 @@ app.frame('/pokemons/:position/:index', async (c) => {
   const { frameData, buttonValue } = c;
   const fid = frameData?.fid;
   let position = Number(c.req.param('position'));
+  let isCasual = c.previousState?.isCasual;
+  let isCompetitive = c.previousState?.isCompetitive;
   const index = Number(c.req.param('index'));
 
   if (Number(buttonValue)) {
     c.deriveState((prevState: any) => {
       prevState.joinableBattleId = Number(buttonValue);
       prevState.isMaker = false;
+    });
+  }
+
+  if(buttonValue === 'casual') {
+    c.deriveState((prevState: any) => {
+      prevState.isCasual = true;
+    });
+  }
+
+  if(buttonValue === 'competitive') {
+    c.deriveState((prevState: any) => {
+      prevState.isCompetitive = true;
     });
   }
 
@@ -156,6 +173,13 @@ app.frame('/pokemons/:position/:index', async (c) => {
     const lastSelectedPokemon = c.previousState?.lastSelectedPokemon!;
     const pokemonId = playerPokemons[lastSelectedPokemon];
 
+    if(!isMaker) {
+      isCasual = await checkBattleCasual(joinableBattleId);
+      if(!isCasual) {
+        isCompetitive = true;
+      }
+    }
+
     selectedPokemons.push(pokemonId);
 
     c.deriveState((prevState: any) => {
@@ -163,15 +187,27 @@ app.frame('/pokemons/:position/:index', async (c) => {
     });
 
     if (index == 3) {
-      return c.res({
-        title,
-        image: `/image/checkout/${selectedPokemons[0]}/${selectedPokemons[1]}/${selectedPokemons[2]}`,
-        imageAspectRatio: '1:1',
-        intents: [
-          <Button.Transaction action={`${isMaker ? '/battle/handle' : `/battle/${joinableBattleId}/join`}`} target={`${isMaker ? '/create-battle' : '/join-battle'}`}>CREATE BATTLE</Button.Transaction>,
-          <Button action={`/battle`}>↩️</Button>,
-        ],
-      })
+      if(isCompetitive) {
+        return c.res({
+          title,
+          image: `/image/checkout/${selectedPokemons[0]}/${selectedPokemons[1]}/${selectedPokemons[2]}`,
+          imageAspectRatio: '1:1',
+          intents: [
+            <Button.Transaction action={`${isMaker ? '/battle/handle' : `/battle/${joinableBattleId}/join`}`} target={`${isMaker ? '/create-battle' : '/join-battle'}`}>{isMaker ? 'CREATE BATTLE' : 'JOIN BATTLE'}</Button.Transaction>,
+            <Button action={`/battle`}>↩️</Button>,
+          ],
+        })
+      } else if(isCasual) {
+        return c.res({
+          title,
+          image: `/image/checkout/${selectedPokemons[0]}/${selectedPokemons[1]}/${selectedPokemons[2]}`,
+          imageAspectRatio: '1:1',
+          intents: [
+            <Button value={`${isMaker ? '' : joinableBattleId}`} action={`${isMaker ? '/finish-battle-create' : `/finish-battle-join`}`}>{isMaker ? 'CREATE BATTLE' : 'JOIN BATTLE'}</Button>,
+            <Button action={`/battle`}>↩️</Button>,
+          ],
+        })
+      }
     }
 
     // remove selected pokemon from player pokemons
@@ -263,7 +299,13 @@ app.frame('/finish-battle-create', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
 
-  const newBattleId = await createBattle(fid!, c.previousState.selectedPokemons!);
+  let isCompetitive = c.previousState?.isCompetitive;
+
+  if(!isCompetitive) {
+    isCompetitive = false;
+  }
+
+  const newBattleId = await createBattle(fid!, c.previousState.selectedPokemons!, isCompetitive);
 
   if (newBattleId === 'Already creating battle') {
     return c.res({

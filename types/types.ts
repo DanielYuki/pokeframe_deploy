@@ -20,6 +20,7 @@ export type Battle = {
     taker_move: string;
     status: string;
     current_turn: number;
+    is_competitive: number;
     battle_log: string[]; 
 }
 
