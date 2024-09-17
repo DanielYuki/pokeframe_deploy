@@ -1,11 +1,12 @@
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Button, Frog, parseEther, TextInput } from 'frog';
 import { getFarcasterUserInfo } from '../lib/neynar.js';
+import { getFarcasterUserInfo, postLum0xTestFrameValidation } from '../lib/lum0x.js';
 import { publicClient } from '../lib/contracts.js';
 import { devtools } from 'frog/dev';
 import { handle } from 'frog/vercel';
 import { serve } from '@hono/node-server';
-import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle } from '../lib/database.js';
+import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, checkBattleCasual, getOpenBattles } from '../lib/database.js';
 import { SHARE_INTENT, SHARE_TEXT, SHARE_EMBEDS, FRAME_URL, SHARE_GACHA, title, CHAIN_ID, CONTRACT_ADDRESS, POKEMON_CONTRACT_ADDRESS, BATTLE_CONTRACT_ADDRESS } from '../config.js';
 import { boundIndex } from '../lib/utils/boundIndex.js';
 import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList } from '../image-generation/generators.js';
@@ -26,6 +27,8 @@ type State = {
   joinableBattleId?: number;
   isLoading?: boolean;
   hasMoved?: boolean;
+  isCasual?: boolean;
+  isCompetitive?: boolean;
 }
 
 const addMetaTags = (client: string, version?: string) => {
@@ -83,6 +86,7 @@ app.frame('/', (c) => {
 
 app.frame('/verify', async (c) => {
   const fid = c.frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), "verify");
   if (fid) {
     const { verifiedAddresses } = await getFarcasterUserInfo(fid);
     if (!verifiedAddresses || verifiedAddresses.length === 0) {
@@ -128,23 +132,103 @@ app.frame('/battle', async (c) => {
     image: '/images/battle3.png',
     imageAspectRatio: '1:1',
     intents: [
-      <Button action={`/pokemons/0/0`}>POKEMONS</Button>,
-      <Button action={`/find-battle`}>FIND BATTLE</Button>,
+      <Button action={`/find-battle`}>TEST LIST</Button>,
+      <Button action={`/battle-create`}>CREATE NEW BATTLE</Button>,
+      <Button action={`/battle-join`}>JOIN A BATTLE</Button>,
       <Button action={`/verify`}>↩️</Button>,
     ],
   })
 })
 
+app.frame('/battle-create', async (c) => {
+  // const { frameData } = c;
+  // const fid = frameData?.fid;
+  // const { verifiedAddresses } = c.previousState ? c.previousState : await getFarcasterUserInfo(fid);
+  // const playerAddress = verifiedAddresses[0] as `0x${string}`;
+
+  // set isMaker to true
+  c.deriveState((prevState: any) => {
+    prevState.isMaker = true;
+    prevState.selectedPokemons = [];
+  });
+
+  return c.res({
+    title,
+    image: '/images/battle3.png',
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button value='casual' action={`/pokemons/0/0`}>CASUAL</Button>,
+      <Button value='competitive' action={`/pokemons/0/0`}>COMPETITIVE</Button>,
+      <Button action={`/verify`}>↩️</Button>,
+    ],
+  })
+})
+
+app.frame('/battle-join', async (c) => {
+  return c.res({
+    title,
+    image: `/images/bocover.png`,
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button action={`/battle-join/list/0`}>Search battles</Button>,
+    ],
+  });
+})
+
+app.frame("/battle-join/list/:position", async (c) => {
+  const waitingBattles = await getOpenBattles();
+  const totalBattles = waitingBattles.length;
+
+  const position = Number(c.req.param('position'));
+  const battle = await getBattleById(waitingBattles[position]);
+  const battlePokemons = battle.maker_pokemons.map((pokemon: any) => pokemon.id);
+
+  const getNextIndex = (currentIndex: any) => (currentIndex + 1) % totalBattles;
+  const getPreviousIndex = (currentIndex: any) => (currentIndex - 1 + totalBattles) % totalBattles;
+
+  const nextBattleId = getNextIndex(position);
+  const previousBattleId = getPreviousIndex(position);
+
+  console.log("next", nextBattleId);
+  console.log("previous", previousBattleId);
+
+  return c.res({
+    title,
+    image: `/image/battlelist/${battlePokemons[0]}/${battlePokemons[1]}/${battlePokemons[2]}/${battle.maker}`,
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button action={`/battle-join/list/${previousBattleId}`}>⬅️</Button>,
+      <Button action={`/battle/share/${waitingBattles[position]}`}>✅</Button>,
+      <Button action={`/battle-join/list/${nextBattleId}`}>➡️</Button>,
+    ],
+  });
+});
+
 app.frame('/pokemons/:position/:index', async (c) => {
   const { frameData, buttonValue } = c;
   const fid = frameData?.fid;
   let position = Number(c.req.param('position'));
+  let isCasual = c.previousState?.isCasual;
+  let isCompetitive = c.previousState?.isCompetitive;
   const index = Number(c.req.param('index'));
+  await postLum0xTestFrameValidation(Number(fid), `pokemons/${position}/${index}`);
 
   if (Number(buttonValue)) {
     c.deriveState((prevState: any) => {
       prevState.joinableBattleId = Number(buttonValue);
       prevState.isMaker = false;
+    });
+  }
+
+  if(buttonValue === 'casual') {
+    c.deriveState((prevState: any) => {
+      prevState.isCasual = true;
+    });
+  }
+
+  if(buttonValue === 'competitive') {
+    c.deriveState((prevState: any) => {
+      prevState.isCompetitive = true;
     });
   }
 
@@ -157,6 +241,13 @@ app.frame('/pokemons/:position/:index', async (c) => {
     const lastSelectedPokemon = c.previousState?.lastSelectedPokemon!;
     const pokemonId = playerPokemons[lastSelectedPokemon];
 
+    if(!isMaker) {
+      isCasual = await checkBattleCasual(joinableBattleId);
+      if(!isCasual) {
+        isCompetitive = true;
+      }
+    }
+
     selectedPokemons.push(pokemonId);
 
     c.deriveState((prevState: any) => {
@@ -164,15 +255,27 @@ app.frame('/pokemons/:position/:index', async (c) => {
     });
 
     if (index == 3) {
-      return c.res({
-        title,
-        image: `/image/checkout/${selectedPokemons[0]}/${selectedPokemons[1]}/${selectedPokemons[2]}`,
-        imageAspectRatio: '1:1',
-        intents: [
-          <Button.Transaction action={`${isMaker ? '/battle/handle' : `/battle/${joinableBattleId}/join`}`} target={`${isMaker ? '/create-battle' : '/join-battle'}`}>CREATE BATTLE</Button.Transaction>,
-          <Button action={`/battle`}>↩️</Button>,
-        ],
-      })
+      if(isCompetitive) {
+        return c.res({
+          title,
+          image: `/image/checkout/${selectedPokemons[0]}/${selectedPokemons[1]}/${selectedPokemons[2]}`,
+          imageAspectRatio: '1:1',
+          intents: [
+            <Button.Transaction action={`${isMaker ? '/battle/handle' : `/battle/${joinableBattleId}/join`}`} target={`${isMaker ? '/create-battle' : '/join-battle'}`}>{isMaker ? 'CREATE BATTLE' : 'JOIN BATTLE'}</Button.Transaction>,
+            <Button action={`/battle`}>↩️</Button>,
+          ],
+        })
+      } else if(isCasual) {
+        return c.res({
+          title,
+          image: `/image/checkout/${selectedPokemons[0]}/${selectedPokemons[1]}/${selectedPokemons[2]}`,
+          imageAspectRatio: '1:1',
+          intents: [
+            <Button value={`${isMaker ? '' : joinableBattleId}`} action={`${isMaker ? '/finish-battle-create' : `/finish-battle-join`}`}>{isMaker ? 'CREATE BATTLE' : 'JOIN BATTLE'}</Button>,
+            <Button action={`/battle`}>↩️</Button>,
+          ],
+        })
+      }
     }
 
     // remove selected pokemon from player pokemons
@@ -264,7 +367,14 @@ app.frame('/finish-battle-create', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
 
-  const newBattleId = await createBattle(fid!, c.previousState.selectedPokemons!);
+  let isCompetitive = c.previousState?.isCompetitive;
+
+  if(!isCompetitive) {
+    isCompetitive = false;
+  }
+
+  await postLum0xTestFrameValidation(Number(fid), "finish-battle-create");
+  const newBattleId = await createBattle(fid!, c.previousState.selectedPokemons!, isCompetitive);
 
   if (newBattleId === 'Already creating battle') {
     return c.res({
@@ -387,6 +497,7 @@ app.frame('/battle/:gameId/join', async (c) => {
 app.frame('/finish-battle-join', async (c) => {
   const { frameData, buttonValue } = c;
   const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), "finish-battle-join");
   const gameId = Number(buttonValue);
 
   const message = await joinBattle(gameId, fid!, c.previousState.selectedPokemons!);
@@ -419,7 +530,9 @@ app.frame('/finish-battle-join', async (c) => {
 
 //render pokemon active pokemons and basic stats (hp) 
 app.frame('/battle/:gameId', async (c) => {
+  const gameId = Number(c.req.param('gameId'));
   const fid = c.frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}`);
   if (fid) {
     const { verifiedAddresses } = await getFarcasterUserInfo(fid);
     if (!verifiedAddresses || verifiedAddresses.length === 0) {
@@ -438,7 +551,6 @@ app.frame('/battle/:gameId', async (c) => {
     });
   }
 
-  const gameId = Number(c.req.param('gameId'));
   const battle = await getBattleById(gameId);
 
   // console.log(battle);
@@ -489,8 +601,8 @@ app.frame('/battle/share/:gameId', async (c) => {
 app.frame('/battle/:gameId/checkout', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
-
   const gameId = Number(c.req.param('gameId'));
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/checkout`);
   const battle: any = await getBattleById(gameId);
 
   const role = verifyMakerOrTaker(fid!, battle);
@@ -522,6 +634,7 @@ app.frame('/battle/:gameId/fight', async (c) => {
   const gameId = c.req.param('gameId') as string;
   const { frameData } = c;
   const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/fight`);
   // TODO: a function to update the battle log and status
   return c.res({
     title,
@@ -553,11 +666,12 @@ app.frame('/battle/:gameId/confirm', async (c) => {
 
 app.frame('/battle/:gameId/waiting/:value', async (c) => {
   const { frameData } = c;
-  const fid = frameData?.fid;
-  const hasMoved = c.previousState?.hasMoved;
-
   const gameId = Number(c.req.param('gameId'));
   const value = Number(c.req.param('value'));
+  const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/waiting/${value}`);
+  const hasMoved = c.previousState?.hasMoved;
+
 
   if (!hasMoved) {
     const battle: any = await getBattleById(gameId)
@@ -608,6 +722,7 @@ app.frame('/battle/:gameId/pokemon', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
   const gameId = c.req.param('gameId') as string;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/pokemon`);
 
   const battle: any = await getBattleById(Number(gameId));
   const { player, opponent } = getPlayers(fid!, battle);
@@ -680,7 +795,7 @@ app.frame('/battle/:gameId/forfeit', async (c) => {
   const gameId = c.req.param('gameId') as any;
   const { frameData } = c;
   const fid = frameData?.fid;
-
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/forfeit`);
   await forfeitBattle(gameId, fid!);
 
   return c.res({
@@ -696,11 +811,11 @@ app.frame('/battle/:gameId/forfeit', async (c) => {
 app.frame('/pokedex/:position', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
-
+  const position = Number(c.req.param('position')) || 0;
+  await postLum0xTestFrameValidation(Number(fid), `pokedex/${position}`);
   const playerPokemons = await getPokemonsByPlayerId(fid!);
   const totalPlayerPokemons = playerPokemons.length;
 
-  const position = Number(c.req.param('position')) || 0;
 
   const pokemonId = playerPokemons[position];
   const pokemonName = await getPokemonName(Number(pokemonId));
@@ -725,7 +840,7 @@ app.frame('/new', (c) => {
     image: '/images/gacha1.png',
     imageAspectRatio: '1:1',
     intents: [
-      <Button.Transaction action={`/loading`} target={`/mint`}>CAPTURE 🕹️</Button.Transaction>,
+      <Button.Transaction action={`/loading`} target={`/send`}>CAPTURE 🕹️</Button.Transaction>,
       <Button action={`/pokedex/0`}>↩️</Button>,
     ],
   })
@@ -750,9 +865,9 @@ app.frame('/loading', async (c) => {
         hash: currentTx,
       });
 
-      console.log(transactionReceipt);
+      // console.log(transactionReceipt);
 
-      console.log("topics", transactionReceipt?.logs[1].topics);
+      // console.log("topics", transactionReceipt?.logs[1].topics);
 
       if (transactionReceipt && transactionReceipt.status == 'reverted') {
         return c.error({ message: 'Transaction failed' });
@@ -767,7 +882,7 @@ app.frame('/loading', async (c) => {
 
         return c.res({
           title,
-          image: `/images/pokeball.gif`,
+          image: `/images/catch.png`,
           imageAspectRatio: '1:1',
           intents: [
             <Button action={`/finish-mint`}>CATCH</Button>,
@@ -776,6 +891,7 @@ app.frame('/loading', async (c) => {
       }
     } catch (error) {
       console.log("Waiting for tx...");
+      console.log(error);
     }
   }
   return c.res({
@@ -791,6 +907,7 @@ app.frame('/loading', async (c) => {
 app.frame('/finish-mint', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), "finish-mint");
   const currentTx = c.previousState?.currentTxId!;
 
   console.log(currentTx);
@@ -800,10 +917,10 @@ app.frame('/finish-mint', async (c) => {
   if (pokemonId == 0) {
     return c.res({
       title,
-      image: '/images/pokeball.gif',
+      image: '/images/loading.gif',
       imageAspectRatio: '1:1',
       intents: [
-        <Button action={`/finish-mint`}>WAIT...</Button>,
+        <Button action={`/finish-mint`}>REFRESH 🔄️</Button>,
       ],
     })
   }
@@ -814,10 +931,10 @@ app.frame('/finish-mint', async (c) => {
 
   return c.res({
     title,
-    image: `/images/pokeball.gif`,
+    image: `/images/checkout-mint.png`,
     imageAspectRatio: '1:1',
     intents: [
-      <Button action={`/gotcha/${pokemonId}`}>FINISH!</Button>,
+      <Button action={`/gotcha/${pokemonId}`}>CHECK IT OUT!!</Button>,
     ],
   })
 })
@@ -855,6 +972,15 @@ app.transaction('/mint', (c) => {
   //   to: CONTRACT_ADDRESS,
   //   value: parseEther(mintCost as string),
   // })
+})
+
+app.transaction('/send', (c) => {
+  const mintCost = '0.000777';
+  return c.send({
+    chainId: CHAIN_ID,
+    to: CONTRACT_ADDRESS,
+    value: parseEther(mintCost as string),
+  })
 })
 
 app.transaction('/create-battle', (c) => {
@@ -1140,6 +1266,27 @@ app.hono.get('/image/fight/:gameId/user/:userFid', async (c) => {
     return c.newResponse(image, 200, {
       'Content-Type': 'image/png',
       'Cache-Control': 'max-age=0', //try no-cache later
+    });
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return c.newResponse("Error generating image", 500);
+  }
+});
+
+app.hono.get('/image/battlelist/:p1/:p2/:p3/:fid', async (c) => {
+  const fid = Number(c.req.param('fid'));
+  const { pfp_url } = await getFarcasterUserInfo(fid);
+
+  try {
+    const p1 = Number(c.req.param('p1'));
+    const p2 = Number(c.req.param('p2'));
+    const p3 = Number(c.req.param('p3'));
+
+    const image = await generateBattleList([p1,p2,p3], pfp_url);
+
+    return c.newResponse(image, 200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'max-age=0', 
     });
   } catch (error) {
     console.error("Error generating image:", error);
