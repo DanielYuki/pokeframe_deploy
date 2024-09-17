@@ -1,6 +1,6 @@
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Button, Frog, parseEther } from 'frog';
-import { getFarcasterUserInfo } from '../lib/neynar.js';
+import { getFarcasterUserInfo, postLum0xTestFrameValidation } from '../lib/lum0x.js';
 import { publicClient } from '../lib/contracts.js';
 import { devtools } from 'frog/dev';
 import { handle } from 'frog/vercel';
@@ -85,6 +85,7 @@ app.frame('/', (c) => {
 
 app.frame('/verify', async (c) => {
   const fid = c.frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), "verify");
   if (fid) {
     const { verifiedAddresses } = await getFarcasterUserInfo(fid);
     if (!verifiedAddresses || verifiedAddresses.length === 0) {
@@ -144,6 +145,7 @@ app.frame('/pokemons/:position/:index', async (c) => {
   let isCasual = c.previousState?.isCasual;
   let isCompetitive = c.previousState?.isCompetitive;
   const index = Number(c.req.param('index'));
+  await postLum0xTestFrameValidation(Number(fid), `pokemons/${position}/${index}`);
 
   if (Number(buttonValue)) {
     c.deriveState((prevState: any) => {
@@ -305,6 +307,7 @@ app.frame('/finish-battle-create', async (c) => {
     isCompetitive = false;
   }
 
+  await postLum0xTestFrameValidation(Number(fid), "finish-battle-create");
   const newBattleId = await createBattle(fid!, c.previousState.selectedPokemons!, isCompetitive);
 
   if (newBattleId === 'Already creating battle') {
@@ -397,6 +400,7 @@ app.frame('/battle/:gameId/join', async (c) => {
 app.frame('/finish-battle-join', async (c) => {
   const { frameData, buttonValue } = c;
   const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), "finish-battle-join");
   const gameId = Number(buttonValue);
 
   const message = await joinBattle(gameId, fid!, c.previousState.selectedPokemons!);
@@ -429,7 +433,9 @@ app.frame('/finish-battle-join', async (c) => {
 
 //render pokemon active pokemons and basic stats (hp) 
 app.frame('/battle/:gameId', async (c) => {
+  const gameId = Number(c.req.param('gameId'));
   const fid = c.frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}`);
   if (fid) {
     const { verifiedAddresses } = await getFarcasterUserInfo(fid);
     if (!verifiedAddresses || verifiedAddresses.length === 0) {
@@ -448,7 +454,6 @@ app.frame('/battle/:gameId', async (c) => {
     });
   }
 
-  const gameId = Number(c.req.param('gameId'));
   const battle = await getBattleById(gameId);
 
   console.log(battle);
@@ -499,8 +504,8 @@ app.frame('/battle/share/:gameId', async (c) => {
 app.frame('/battle/:gameId/checkout', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
-
   const gameId = Number(c.req.param('gameId'));
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/checkout`);
   const battle: any = await getBattleById(gameId);
 
   const role = verifyMakerOrTaker(fid!, battle);
@@ -532,6 +537,7 @@ app.frame('/battle/:gameId/fight', async (c) => {
   const gameId = c.req.param('gameId') as string;
   const { frameData } = c;
   const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/fight`);
   // TODO: a function to update the battle log and status
   return c.res({
     title,
@@ -563,11 +569,12 @@ app.frame('/battle/:gameId/confirm', async (c) => {
 
 app.frame('/battle/:gameId/waiting/:value', async (c) => {
   const { frameData } = c;
-  const fid = frameData?.fid;
-  const hasMoved = c.previousState?.hasMoved;
-
   const gameId = Number(c.req.param('gameId'));
   const value = Number(c.req.param('value'));
+  const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/waiting/${value}`);
+  const hasMoved = c.previousState?.hasMoved;
+
 
   if (!hasMoved) {
     const battle: any = await getBattleById(gameId)
@@ -618,6 +625,7 @@ app.frame('/battle/:gameId/pokemon', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
   const gameId = c.req.param('gameId') as string;
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/pokemon`);
 
   const battle: any = await getBattleById(Number(gameId));
   const { player, opponent } = getPlayers(fid!, battle);
@@ -690,7 +698,7 @@ app.frame('/battle/:gameId/forfeit', async (c) => {
   const gameId = c.req.param('gameId') as any;
   const { frameData } = c;
   const fid = frameData?.fid;
-
+  await postLum0xTestFrameValidation(Number(fid), `battle/${gameId}/forfeit`);
   await forfeitBattle(gameId, fid!);
 
   return c.res({
@@ -706,11 +714,11 @@ app.frame('/battle/:gameId/forfeit', async (c) => {
 app.frame('/pokedex/:position', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
-
+  const position = Number(c.req.param('position')) || 0;
+  await postLum0xTestFrameValidation(Number(fid), `pokedex/${position}`);
   const playerPokemons = await getPokemonsByPlayerId(fid!);
   const totalPlayerPokemons = playerPokemons.length;
 
-  const position = Number(c.req.param('position')) || 0;
 
   const pokemonId = playerPokemons[position];
   const pokemonName = await getPokemonName(Number(pokemonId));
@@ -801,6 +809,7 @@ app.frame('/loading', async (c) => {
 app.frame('/finish-mint', async (c) => {
   const { frameData } = c;
   const fid = frameData?.fid;
+  await postLum0xTestFrameValidation(Number(fid), "finish-mint");
   const currentTx = c.previousState?.currentTxId!;
 
   console.log(currentTx);
