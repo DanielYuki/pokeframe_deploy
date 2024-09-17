@@ -36,6 +36,23 @@ export const assignPokemonToUser = async (senderId: number, hash: `0x${string}`)
   return 0;
 }
 
+export const welcomeGift = async (userFid:number, userAddress:string) => {
+  console.log("Sending welcome gift to", userFid, userAddress);
+  const response = await fetch(`${BACKEND_URL}/welcome-gift`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ userFid, userAddress })
+  })
+
+  if(response.ok) {
+    return "Sent welcome gift";
+  } else {
+    return "Failed to send welcome gift";
+  }
+}
+
 export const getPokemonById = async (
   pokemonId: number,
 ) => {

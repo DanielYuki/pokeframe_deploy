@@ -5,7 +5,7 @@ import { publicClient } from '../lib/contracts.js';
 import { devtools } from 'frog/dev';
 import { handle } from 'frog/vercel';
 import { serve } from '@hono/node-server';
-import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, getPokemonById, checkBattleCasual } from '../lib/database.js';
+import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, getPokemonById, checkBattleCasual, welcomeGift } from '../lib/database.js';
 import { SHARE_INTENT, SHARE_TEXT, SHARE_EMBEDS, FRAME_URL, SHARE_GACHA, title, CHAIN_ID, CONTRACT_ADDRESS, POKEMON_CONTRACT_ADDRESS, BATTLE_CONTRACT_ADDRESS } from '../config.js';
 import { boundIndex } from '../lib/utils/boundIndex.js';
 import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList, generateBattleListV0, generateLastTurnBattleLog, generateTrending } from '../image-generation/generators.js';
@@ -100,6 +100,7 @@ app.frame('/verify', async (c) => {
         ],
       });
     }
+    await welcomeGift(Number(fid), verifiedAddresses[0]);
     c.deriveState((prevState: any) => {
       prevState.verifiedAddresses = verifiedAddresses;
     });
