@@ -382,9 +382,11 @@ function prettyName(inputString: string): string {
 export const generatePokemonCard = async (
   pokemonId: number,
   pokemonName: string,
+  pokemonType: string,
   pokemonHp: number,
   pokemonAtk: number,
   pokemonDef: number,
+  pokemonSpd: number,
 ) => {
   try {
   const ComponentsArray = [];
@@ -440,19 +442,20 @@ export const generatePokemonCard = async (
 
   const typeText = `
   <svg width="248" height="65">
-    <text x="120" y="48" text-anchor="left" font-weight="bold" font-size="25" fill="white">ELECTRIC</text>  </svg>        
+    <text x="120" y="48" text-anchor="middle" font-weight="bold" font-size="22" fill="white">${(pokemonType).toUpperCase()}</text>  </svg>        
   `
 
   ComponentsArray.push({input: usr1ImageBuffer, top: 160, left: 0});
   ComponentsArray.push({input: usr2ImageBuffer, top: 490, left: 27});
   ComponentsArray.push({input: usr3ImageBuffer, top: 490, left: 470});
   ComponentsArray.push({input: Buffer.from(pokemon), top: 46, left: 328});
-  ComponentsArray.push({input: Buffer.from(pokeType("Electric")), top: 140, left: 328});
-  ComponentsArray.push({input: Buffer.from(typeText), top: 130, left: 218});
+  ComponentsArray.push({input: Buffer.from(pokeType(pokemonType)), top: 140, left: 328});
+  ComponentsArray.push({input: Buffer.from(typeText), top: 130, left: 285});
   ComponentsArray.push({input: Buffer.from(id), top: 46, left: 20});
   ComponentsArray.push({input: Buffer.from(statsBar(pokemonHp)), top: 248, left: 412});
   ComponentsArray.push({input: Buffer.from(statsBar(pokemonAtk)), top: 297, left: 412});
   ComponentsArray.push({input: Buffer.from(statsBar(pokemonDef)), top: 346, left: 412});
+  ComponentsArray.push({input: Buffer.from(statsBar(pokemonSpd)), top: 395, left: 412});
 
   const finalImage = await sharp(baseImageBuffer)
   .composite(ComponentsArray)
