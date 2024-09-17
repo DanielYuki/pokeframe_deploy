@@ -36,6 +36,16 @@ export const assignPokemonToUser = async (senderId: number, hash: `0x${string}`)
   return 0;
 }
 
+export const getPokemonById = async (
+  pokemonId: number,
+) => {
+  const response = await fetch(`${BACKEND_URL}/pokemon/${pokemonId}`);
+
+  const data = await response.json();
+  
+  return data;
+}
+
 export const getPokemonsByPlayerId = async (senderId: number, selectedPokemons: number[] = []) => {
   const response = await fetch(`${BACKEND_URL}/user/${senderId}/pokemons`);
 
