@@ -192,7 +192,7 @@ app.frame("/battle-join/list/:position", async (c) => {
 
   return c.res({
     title,
-    image: `/image/battlelist/${battlePokemons[0]}/${battlePokemons[1]}/${battlePokemons[2]}`,
+    image: `/image/battlelist/${battlePokemons[0]}/${battlePokemons[1]}/${battlePokemons[2]}/${battle.maker}`,
     imageAspectRatio: '1:1',
     intents: [
       <Button action={`/battle-join/list/${previousBattleId}`}>⬅️</Button>,
@@ -1212,13 +1212,16 @@ app.hono.get('/image/fight/:gameId/user/:userFid', async (c) => {
   }
 });
 
-app.hono.get('/image/battlelist/:p1/:p2/:p3', async (c) => {
+app.hono.get('/image/battlelist/:p1/:p2/:p3/:fid', async (c) => {
+  const fid = Number(c.req.param('fid'));
+  const { pfp_url } = await getFarcasterUserInfo(fid);
+
   try {
     const p1 = Number(c.req.param('p1'));
     const p2 = Number(c.req.param('p2'));
     const p3 = Number(c.req.param('p3'));
 
-    const image = await generateBattleList([p1,p2,p3]);
+    const image = await generateBattleList([p1,p2,p3], pfp_url);
 
     return c.newResponse(image, 200, {
       'Content-Type': 'image/png',

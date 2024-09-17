@@ -413,13 +413,33 @@ export const generatePokemonMenu = async (
 
 export const generateBattleList = async (
   pokemonIds: number[],
+  profilePicURL: string
 ) => {
   try {
   const ComponentsArray = [];
+
+  const pfpSize = 170;
+
+  const circleMask = Buffer.from(
+    `<svg><circle cx="${pfpSize / 2}" cy="${pfpSize / 2}" r="${
+      pfpSize / 2
+    }" /></svg>`,
+  );
+
+  const response = await fetch(profilePicURL);
+  const blob = await response.blob();
+  const arrayBuffer = await blob.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const profileBuffer = await sharp(buffer)
+  .resize(pfpSize, pfpSize)
+  .composite([{ input: circleMask, blend: 'dest-in' }])
+  .png()
+  .toBuffer();
   
   const baseImageBuffer = await sharp(join(__dirname, '../public/images/battle-oracle-base.png'))
   .resize(600, 600)
-  .jpeg()
+  .png()
   .toBuffer();
 
   const pokemon1ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${pokemonIds[0]}.png`))
@@ -436,10 +456,11 @@ export const generateBattleList = async (
   .resize(86, 86)
   .png()
   .toBuffer();
-
-  ComponentsArray.push({input: pokemon1ImageBuffer, top: 60, left: 122});
-  ComponentsArray.push({input: pokemon2ImageBuffer, top: 60, left: 258});
-  ComponentsArray.push({input: pokemon3ImageBuffer, top: 60, left: 397});
+  
+  ComponentsArray.push({input: profileBuffer, top: 97, left: 215});
+  ComponentsArray.push({input: pokemon1ImageBuffer, top: 290, left: 122});
+  ComponentsArray.push({input: pokemon2ImageBuffer, top: 290, left: 258});
+  ComponentsArray.push({input: pokemon3ImageBuffer, top: 290, left: 397});
   const finalImage = await sharp(baseImageBuffer)
   .composite(ComponentsArray)
   .jpeg()
