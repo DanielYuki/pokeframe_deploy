@@ -4,7 +4,7 @@ dotenv.config();
 
 Lum0x.init(process.env.LUM0X_API_KEY as string);
 
-export const postLum0xTestFrameValidator = (async (
+export const postLum0xTestFrameValidation = (async (
     fid: number,
     path: string,
 ) => {
