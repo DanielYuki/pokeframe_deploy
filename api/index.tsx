@@ -1,20 +1,20 @@
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Button, Frog, parseEther, TextInput } from 'frog';
-// import { getFarcasterUserInfo } from '../lib/neynar.js';
 import { getFarcasterUserInfo, postLum0xTestFrameValidation } from '../lib/lum0x.js';
 import { publicClient } from '../lib/contracts.js';
 import { devtools } from 'frog/dev';
 import { handle } from 'frog/vercel';
 import { serve } from '@hono/node-server';
-import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, checkBattleCasual, getOpenBattles } from '../lib/database.js';
+import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, checkBattleCasual } from '../lib/database.js';
 import { SHARE_INTENT, SHARE_TEXT, SHARE_EMBEDS, FRAME_URL, SHARE_GACHA, title, CHAIN_ID, CONTRACT_ADDRESS, POKEMON_CONTRACT_ADDRESS, BATTLE_CONTRACT_ADDRESS } from '../config.js';
 import { boundIndex } from '../lib/utils/boundIndex.js';
-import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList, generateBattleListV0, generateLastTurnBattleLog } from '../image-generation/generators.js';
+import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList, generateBattleListV0, generateLastTurnBattleLog, generateTrending } from '../image-generation/generators.js';
 import { getPlayers, verifyMakerOrTaker } from '../lib/utils/battleUtils.js';
 import { handleFrameLog } from '../lib/utils/handleFrameLog.js';
 import { validateFramesPost } from '@xmtp/frames-validator';
 import { Context, Next } from 'hono';
 import { getPokemonTypeColor } from '../image-generation/pkmTypeColor.js';
+import { fetchTopContributors } from '../lib/nanograph.js';
 
 type State = {
   verifiedAddresses?: `0x${string}`[];
@@ -111,6 +111,7 @@ app.frame('/verify', async (c) => {
     intents: [
       <Button action={`/battle`}>BATTLE ⚔️</Button>,
       <Button action={`/pokedex/0`}>POKEDEX 📱</Button>,
+      <Button action={`/trending`}>NANOGRAPH🔥</Button> //trending players
     ],
   })
 })
@@ -134,7 +135,7 @@ app.frame('/battle', async (c) => {
     intents: [
       // <Button action={`/find-battle`}>TEST LIST</Button>,
       <Button action={`/battle-create`}>CREATE NEW BATTLE</Button>,
-      <Button action={`/battle-join`}>JOIN BATTLE</Button>,
+      <Button action={`/battle-join/list/0`}>JOIN BATTLE</Button>,
       <Button action={`/verify`}>↩️</Button>,
     ],
   })
@@ -162,17 +163,6 @@ app.frame('/battle-create', async (c) => {
       <Button action={`/verify`}>↩️</Button>,
     ],
   })
-})
-
-app.frame('/battle-join', async (c) => {
-  return c.res({
-    title,
-    image: `/images/bocover.png`,
-    imageAspectRatio: '1:1',
-    intents: [
-      <Button action={`/battle-join/list/0`}>Search battles</Button>,
-    ],
-  });
 })
 
 app.frame("/battle-join/list/:position", async (c) => {
@@ -942,6 +932,17 @@ app.frame('/finish-mint', async (c) => {
   })
 })
 
+app.frame('/trending', async (c) => {
+  return c.res({
+    title,
+    image: '/image/trending',
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button action={`/verify`}>↩️</Button>,
+    ],
+  })
+})
+
 app.transaction('/mint', (c) => {
 
   const abi = [
@@ -1313,6 +1314,22 @@ app.hono.get('/image/battlelist/:p1/:p2/:p3/:fid', async (c) => {
     return c.newResponse("Error generating image", 500);
   }
 });
+
+app.hono.get('/image/trending', async (c) => {
+  const trendingData = await fetchTopContributors();
+  // console.log(trendingData);
+  try {
+    const image = await generateTrending(trendingData);
+    return c.newResponse(image, 200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'max-age=0', 
+    });
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return c.newResponse("Error generating image", 500);
+  }
+});
+
 
 if (process.env.NODE_ENV !== 'production') {
   devtools(app, { serveStatic });
