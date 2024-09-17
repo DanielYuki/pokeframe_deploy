@@ -3,6 +3,7 @@ import { Attack } from "../types/types.js";
 
 import { attackType, hpHp, hpSVG, moves, moves2, pokemonSVG, statsBox1, statsBox2, statusPokemon, typeBox, typeBox2 } from "./functions.js";
 import { getPokemonTypeColor } from "./pkmTypeColor.js";
+import { getFarcasterUserInfo } from "../lib/lum0x.js";
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -617,5 +618,135 @@ export const generateBattleList = async (
   } catch(error) {
       console.error("Error during battle checkout generation:", error);
       throw error;
+  }
+}
+
+export const generateTrending = async(trendingData: any) => {
+  try {
+    const ComponentsArray = [];
+
+    const trendingUserData1 = await getFarcasterUserInfo(trendingData[0].fid); 
+    const trendingUserData2 = await getFarcasterUserInfo(trendingData[1].fid); 
+    const trendingUserData3 = await getFarcasterUserInfo(trendingData[2].fid); 
+
+    const trendingHeader = `
+      <svg width="600" height="50">
+        <text x="150" y="40" font-size="36" fill="white">TRENDING USERS</text>
+      </svg>
+    `;
+    
+    const pfpSize = 150;
+    const circleMask = Buffer.from(
+      `<svg><circle cx="${pfpSize / 2}" cy="${pfpSize / 2}" r="${
+        pfpSize / 2
+      }" /></svg>`,
+    );
+    
+    const baseImageBuffer = await sharp(join(__dirname, '../public/images/battle-scenes/0.png'))
+    .resize(600, 600)
+    .png()
+    .toBuffer();
+    
+    // BRONCO CRAZYYY 😝😲😖🤯🤪🤪🤪🤪🤪💀
+    // TOP 1
+    const response1 = await fetch(trendingUserData1.pfp_url);
+    const blob1 = await response1.blob();
+    const arrayBuffer1 = await blob1.arrayBuffer();
+    const buffer1 = Buffer.from(arrayBuffer1);
+    const profileBuffer1 = await sharp(buffer1)
+    .resize(pfpSize, pfpSize)
+    .composite([{ input: circleMask, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+    const username1 = `
+      <svg width="600" height="50">
+        <text x="0" y="40" font-size="36" fill="white">${trendingUserData1.userName} 🥇</text>
+      </svg>
+    `;
+    const castsRepliesLikesRecasts1 = `
+    <svg width="600" height="50">
+    <text x="0" y="45" font-size="26" fill="white">🪄${trendingData[0].casts} 🗣️${trendingData[0].replies} 👍${trendingData[0].receivedLikes} 🔄️${trendingData[0].receivedRecasts}</text>
+    </svg>
+    `;
+    const contribution1 = `
+      <svg width="600" height="50">
+        <text x="0" y="40" font-size="22" fill="white">NANOGRAPH metrics: ${trendingData[0].contribution}🔥</text>
+      </svg>
+    `;
+    
+    // TOP 2
+    const response2 = await fetch(trendingUserData2.pfp_url);
+    const blob2 = await response2.blob();
+    const arrayBuffer2 = await blob2.arrayBuffer();
+    const buffer2 = Buffer.from(arrayBuffer2);
+    const profileBuffer2 = await sharp(buffer2)
+    .resize(pfpSize, pfpSize)
+    .composite([{ input: circleMask, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+    const username2 = `
+      <svg width="600" height="50">
+        <text x="0" y="40" font-size="36" fill="white">${trendingUserData2.userName} 🥈</text>
+      </svg>
+    `;
+    const castsRepliesLikesRecasts2 = `
+    <svg width="600" height="50">
+    <text x="0" y="45" font-size="26" fill="white">🪄${trendingData[1].casts} 🗣️${trendingData[1].replies} 👍${trendingData[1].receivedLikes} 🔄️${trendingData[1].receivedRecasts}</text>
+    </svg>
+    `;
+    const contribution2 = `
+      <svg width="600" height="50">
+        <text x="0" y="40" font-size="22" fill="white">NANOGRAPH metrics: ${trendingData[1].contribution}🔥</text>
+      </svg>
+    `;
+    
+    // TOP 3
+    const response3 = await fetch(trendingUserData3.pfp_url);
+    const blob3 = await response3.blob();
+    const arrayBuffer3 = await blob3.arrayBuffer();
+    const buffer3 = Buffer.from(arrayBuffer3);
+    const profileBuffer3 = await sharp(buffer3)
+    .resize(pfpSize, pfpSize)
+    .composite([{ input: circleMask, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+    const username3 = `
+      <svg width="600" height="50">
+        <text x="0" y="40" font-size="36" fill="white">${trendingUserData3.userName} 🥉</text>
+      </svg>
+    `;
+    const castsRepliesLikesRecasts3 = `
+    <svg width="600" height="50">
+    <text x="0" y="45" font-size="26" fill="white">🪄${trendingData[2].casts} 🗣️${trendingData[2].replies} 👍${trendingData[2].receivedLikes} 🔄️${trendingData[2].receivedRecasts}</text>
+    </svg>
+    `;
+    const contribution3 = `
+      <svg width="600" height="50">
+        <text x="0" y="40" font-size="22" fill="white">NANOGRAPH metrics: ${trendingData[2].contribution}🔥</text>
+      </svg>
+    `;
+    
+    ComponentsArray.push({input: Buffer.from(trendingHeader), top: 30, left: 15});
+    ComponentsArray.push({input: profileBuffer1, top: 80, left: 40});
+    ComponentsArray.push({input: Buffer.from(username1), top: 80, left: 200});
+    ComponentsArray.push({input: Buffer.from(castsRepliesLikesRecasts1), top: 120, left: 200});
+    ComponentsArray.push({input: Buffer.from(contribution1), top: 160, left: 200});
+    ComponentsArray.push({input: profileBuffer2, top: 250, left: 40});
+    ComponentsArray.push({input: Buffer.from(username2), top: 250, left: 200});
+    ComponentsArray.push({input: Buffer.from(castsRepliesLikesRecasts2), top: 290, left: 200});
+    ComponentsArray.push({input: Buffer.from(contribution2), top: 330, left: 200});
+    ComponentsArray.push({input: profileBuffer3, top: 420, left: 40});
+    ComponentsArray.push({input: Buffer.from(username3), top: 420, left: 200});
+    ComponentsArray.push({input: Buffer.from(castsRepliesLikesRecasts3), top: 460, left: 200});
+    ComponentsArray.push({input: Buffer.from(contribution3), top: 500, left: 200});
+    const finalImage = await sharp(baseImageBuffer)
+    .composite(ComponentsArray)
+    .jpeg()
+    .toBuffer();
+
+    return finalImage;
+  } catch(error) {
+    console.error("Error during trending generation:", error);
+    throw error;
   }
 }
