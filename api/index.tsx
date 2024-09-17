@@ -743,7 +743,7 @@ app.frame('/new', (c) => {
     image: '/images/gacha1.png',
     imageAspectRatio: '1:1',
     intents: [
-      <Button.Transaction action={`/loading`} target={`/mint`}>CAPTURE 🕹️</Button.Transaction>,
+      <Button.Transaction action={`/loading`} target={`/send`}>CAPTURE 🕹️</Button.Transaction>,
       <Button action={`/pokedex/0`}>↩️</Button>,
     ],
   })
@@ -768,9 +768,9 @@ app.frame('/loading', async (c) => {
         hash: currentTx,
       });
 
-      console.log(transactionReceipt);
+      // console.log(transactionReceipt);
 
-      console.log("topics", transactionReceipt?.logs[1].topics);
+      // console.log("topics", transactionReceipt?.logs[1].topics);
 
       if (transactionReceipt && transactionReceipt.status == 'reverted') {
         return c.error({ message: 'Transaction failed' });
@@ -785,7 +785,7 @@ app.frame('/loading', async (c) => {
 
         return c.res({
           title,
-          image: `/images/pokeball.gif`,
+          image: `/images/welcome.png`,
           imageAspectRatio: '1:1',
           intents: [
             <Button action={`/finish-mint`}>CATCH</Button>,
@@ -794,6 +794,7 @@ app.frame('/loading', async (c) => {
       }
     } catch (error) {
       console.log("Waiting for tx...");
+      console.log(error);
     }
   }
   return c.res({
@@ -819,10 +820,10 @@ app.frame('/finish-mint', async (c) => {
   if (pokemonId == 0) {
     return c.res({
       title,
-      image: '/images/pokeball.gif',
+      image: '/images/ok.png',
       imageAspectRatio: '1:1',
       intents: [
-        <Button action={`/finish-mint`}>WAIT...</Button>,
+        <Button action={`/finish-mint`}>REFRESH 🔄️</Button>,
       ],
     })
   }
@@ -833,10 +834,10 @@ app.frame('/finish-mint', async (c) => {
 
   return c.res({
     title,
-    image: `/images/pokeball.gif`,
+    image: `/images/winner.png`,
     imageAspectRatio: '1:1',
     intents: [
-      <Button action={`/gotcha/${pokemonId}`}>FINISH!</Button>,
+      <Button action={`/gotcha/${pokemonId}`}>CHECK IT OUT!!</Button>,
     ],
   })
 })
@@ -874,6 +875,15 @@ app.transaction('/mint', (c) => {
   //   to: CONTRACT_ADDRESS,
   //   value: parseEther(mintCost as string),
   // })
+})
+
+app.transaction('/send', (c) => {
+  const mintCost = '0.000777';
+  return c.send({
+    chainId: CHAIN_ID,
+    to: CONTRACT_ADDRESS,
+    value: parseEther(mintCost as string),
+  })
 })
 
 app.transaction('/create-battle', (c) => {
