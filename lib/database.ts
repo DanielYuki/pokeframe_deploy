@@ -74,7 +74,7 @@ export const createBattle = async (maker: number, maker_pokemons: number[], isCo
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ maker, maker_pokemons: JSON.stringify(maker_pokemons), isCompetitive: isCompetitive ? 1 : 0 })
+      body: JSON.stringify({ maker, maker_pokemons: JSON.stringify(maker_pokemons), is_competitive: isCompetitive ? 1 : 0 })
     })
   
     if(response.ok) {
@@ -97,7 +97,7 @@ export const getBattlesByStatus = async (status: string) => {
   const response = await fetch(`${BACKEND_URL}/get/${status}`);
   const data = await response.json();
   // TODO: handle other battle cases
-  return data as Battle[];
+  return data.battles as Battle[];
 }
 
 let isJoiningBattle = false;
