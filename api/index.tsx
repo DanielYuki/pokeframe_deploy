@@ -1,14 +1,15 @@
 import { serveStatic } from '@hono/node-server/serve-static';
-import { Button, Frog, parseEther } from 'frog';
+import { Button, Frog, parseEther, TextInput } from 'frog';
+// import { getFarcasterUserInfo } from '../lib/neynar.js';
 import { getFarcasterUserInfo, postLum0xTestFrameValidation } from '../lib/lum0x.js';
 import { publicClient } from '../lib/contracts.js';
 import { devtools } from 'frog/dev';
 import { handle } from 'frog/vercel';
 import { serve } from '@hono/node-server';
-import { assignPokemonToUser, createBattle, getBattleById, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, checkBattleCasual, getPokemonById } from '../lib/database.js';
+import { assignPokemonToUser, createBattle, getBattleById, getBattlesByStatus, getPokemonName, getPokemonsByPlayerId, joinBattle, setSelectedPokemons, makeMove, forfeitBattle, getPokemonById, checkBattleCasual, getOpenBattles } from '../lib/database.js';
 import { SHARE_INTENT, SHARE_TEXT, SHARE_EMBEDS, FRAME_URL, SHARE_GACHA, title, CHAIN_ID, CONTRACT_ADDRESS, POKEMON_CONTRACT_ADDRESS, BATTLE_CONTRACT_ADDRESS } from '../config.js';
 import { boundIndex } from '../lib/utils/boundIndex.js';
-import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu } from '../image-generation/generators.js';
+import { generateGame, generateFight, generateBattleConfirm, generateWaitingRoom, generatePokemonCard, generatePokemonMenu, generateBattleList, generateBattleListV0, generateLastTurnBattleLog } from '../image-generation/generators.js';
 import { getPlayers, verifyMakerOrTaker } from '../lib/utils/battleUtils.js';
 import { handleFrameLog } from '../lib/utils/handleFrameLog.js';
 import { validateFramesPost } from '@xmtp/frames-validator';
@@ -26,7 +27,7 @@ type State = {
   joinableBattleId?: number;
   isLoading?: boolean;
   hasMoved?: boolean;
-  isCasual?: boolean;
+  // isCasual?: boolean;
   isCompetitive?: boolean;
 }
 
@@ -131,6 +132,31 @@ app.frame('/battle', async (c) => {
     image: '/images/battle3.png',
     imageAspectRatio: '1:1',
     intents: [
+      // <Button action={`/find-battle`}>TEST LIST</Button>,
+      <Button action={`/battle-create`}>CREATE NEW BATTLE</Button>,
+      <Button action={`/battle-join`}>JOIN BATTLE</Button>,
+      <Button action={`/verify`}>↩️</Button>,
+    ],
+  })
+})
+
+app.frame('/battle-create', async (c) => {
+  // const { frameData } = c;
+  // const fid = frameData?.fid;
+  // const { verifiedAddresses } = c.previousState ? c.previousState : await getFarcasterUserInfo(fid);
+  // const playerAddress = verifiedAddresses[0] as `0x${string}`;
+
+  // set isMaker to true
+  c.deriveState((prevState: any) => {
+    prevState.isMaker = true;
+    prevState.selectedPokemons = [];
+  });
+
+  return c.res({
+    title,
+    image: '/images/battle3.png',
+    imageAspectRatio: '1:1',
+    intents: [
       <Button value='casual' action={`/pokemons/0/0`}>CASUAL</Button>,
       <Button value='competitive' action={`/pokemons/0/0`}>COMPETITIVE</Button>,
       <Button action={`/verify`}>↩️</Button>,
@@ -138,11 +164,54 @@ app.frame('/battle', async (c) => {
   })
 })
 
+app.frame('/battle-join', async (c) => {
+  return c.res({
+    title,
+    image: `/images/bocover.png`,
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button action={`/battle-join/list/0`}>Search battles</Button>,
+    ],
+  });
+})
+
+app.frame("/battle-join/list/:position", async (c) => {
+  // const waitingBattles = await getOpenBattles();
+  const waitingBattles = await getBattlesByStatus('waiting');
+  const totalBattles = waitingBattles.length;
+
+  const position = Number(c.req.param('position'));
+  const battle = waitingBattles[position];
+  console.log(battle);
+  const battlePokemons = JSON.parse(waitingBattles[position].maker_pokemons).map((pokemon: any) => pokemon.id);
+  // const battlePokemons = waitingBattles[position].maker_pokemons.map((pokemon: any) => pokemon.id);
+  // const battle = await getBattleById(waitingBattles[position]);
+  // const battlePokemons = battle.maker_pokemons.map((pokemon: any) => pokemon.id);
+
+  const getNextIndex = (currentIndex: any) => (currentIndex + 1) % totalBattles;
+  const getPreviousIndex = (currentIndex: any) => (currentIndex - 1 + totalBattles) % totalBattles;
+
+  const nextBattleId = getNextIndex(position);
+  const previousBattleId = getPreviousIndex(position);
+
+  return c.res({
+    title,
+    image: `/image/battlelist/${battlePokemons[0]}/${battlePokemons[1]}/${battlePokemons[2]}/${battle.maker}`,
+    imageAspectRatio: '1:1',
+    intents: [
+      <Button action={`/battle-join/list/${previousBattleId}`}>⬅️</Button>,
+      <Button action={`/battle/share/${waitingBattles[position].id}`}>BATTLE⚔️</Button>,
+      <Button action={`/battle-join/list/${nextBattleId}`}>➡️</Button>,
+      <Button action={`/battle`}>↩️</Button>,
+    ],
+  });
+});
+
 app.frame('/pokemons/:position/:index', async (c) => {
   const { frameData, buttonValue } = c;
   const fid = frameData?.fid;
   let position = Number(c.req.param('position'));
-  let isCasual = c.previousState?.isCasual;
+  // let isCasual = c.previousState?.isCasual;
   let isCompetitive = c.previousState?.isCompetitive;
   const index = Number(c.req.param('index'));
   await postLum0xTestFrameValidation(Number(fid), `pokemons/${position}/${index}`);
@@ -154,15 +223,19 @@ app.frame('/pokemons/:position/:index', async (c) => {
     });
   }
 
-  if(buttonValue === 'casual') {
-    c.deriveState((prevState: any) => {
-      prevState.isCasual = true;
-    });
-  }
+  // if(buttonValue === 'casual') {
+  //   c.deriveState((prevState: any) => {
+  //     prevState.isCasual = true;
+  //   });
+  // }
 
   if(buttonValue === 'competitive') {
     c.deriveState((prevState: any) => {
       prevState.isCompetitive = true;
+    });
+  }else if(buttonValue === 'casual'){
+    c.deriveState((prevState: any) => {
+      prevState.isCompetitive = false;
     });
   }
 
@@ -176,10 +249,10 @@ app.frame('/pokemons/:position/:index', async (c) => {
     const pokemonId = playerPokemons[lastSelectedPokemon];
 
     if(!isMaker) {
-      isCasual = await checkBattleCasual(joinableBattleId);
-      if(!isCasual) {
-        isCompetitive = true;
-      }
+      isCompetitive = !await checkBattleCasual(joinableBattleId);
+      // if(!isCasual) {
+      //   isCompetitive = true;
+      // }
     }
 
     selectedPokemons.push(pokemonId);
@@ -199,7 +272,7 @@ app.frame('/pokemons/:position/:index', async (c) => {
             <Button action={`/battle`}>↩️</Button>,
           ],
         })
-      } else if(isCasual) {
+      } else {
         return c.res({
           title,
           image: `/image/checkout/${selectedPokemons[0]}/${selectedPokemons[1]}/${selectedPokemons[2]}`,
@@ -219,8 +292,8 @@ app.frame('/pokemons/:position/:index', async (c) => {
   const pokemonId = playerPokemons[position];
 
   // TODO: check if user has 3 or more pokemons
-  console.log(playerPokemons)
-  console.log(pokemonId)
+  // console.log(playerPokemons)
+  // console.log(pokemonId)
 
   const totalPlayerPokemons = playerPokemons.length;
   const pokemon = await getPokemonById(pokemonId);
@@ -337,13 +410,45 @@ app.frame('/finish-battle-create', async (c) => {
 
   return c.res({
     title,
-    image: `/images/shareBattle.png`,
+    image: `/images/shareBattle.png`, //TODO: change image TO SHOW BATTLE ID
     imageAspectRatio: '1:1',
     intents: [
-      <Button.Link href={`${SHARE_INTENT}/${SHARE_TEXT}/${SHARE_EMBEDS}/${FRAME_URL}/battle/share/${newBattleId}`}>SHARE</Button.Link>,
+      <Button.Link href={`${SHARE_INTENT}/${SHARE_TEXT}/${SHARE_EMBEDS}/${FRAME_URL}/battle/share/${newBattleId}`}>SHARE ID:{newBattleId}</Button.Link>,
       <Button action={`/battle/${newBattleId}`}>BATTLE⚔️</Button>,
     ],
   })
+})
+
+// TODO: finish this later
+app.frame('/find-battle', async (c) => {
+  const battles = await getBattlesByStatus('waiting');
+
+  if (battles.length === 0) {
+    return c.res({
+      title,
+      image: '/images/waiting-for-battle.png', //change image to show no battles
+      imageAspectRatio: '1:1',
+      intents: [
+        <Button action={`/find-battle`}>REFRESH 🔄️</Button>,
+      ]
+    });
+  }
+
+  c.deriveState((prevState: any) => {
+    // prevState.joinableBattleId = battleId;
+    prevState.isMaker = false;
+  });
+
+  return c.res({
+    title,
+    image: '/image/find-battle-list',
+    imageAspectRatio: '1:1',
+    intents: [
+      <TextInput placeholder='Battle ID' />,
+      <Button action={`/pokemons/0/0`}>JOIN BATTLE</Button>,
+      <Button action={`/battle`}>↩️</Button>,
+    ]
+  });
 })
 
 app.frame('/battle/:gameId/join', async (c) => {
@@ -462,7 +567,7 @@ app.frame('/battle/:gameId', async (c) => {
 
   const battle = await getBattleById(gameId);
 
-  console.log(battle);
+  // console.log(battle);
 
   const battleStatus = battle.status;
 
@@ -670,15 +775,10 @@ app.frame('/battle/:gameId/pokemon/:enemyFid', async (c) => {
 // TODO implement battle log (IMAGE GENERATION)
 app.frame('/battle/:gameId/battlelog', async (c) => {
   const gameId = c.req.param('gameId') as string;
-  const battle: any = await getBattleById(Number(gameId));
-
-  const battleLog = battle.battle_log;
-
-  console.log(handleFrameLog(battleLog, battle.current_turn));
 
   return c.res({
     title,
-    image: '/images/battle-fight.png',
+    image: `/image/last-turn-log/${gameId}`,
     imageAspectRatio: '1:1',
     intents: [
       <Button action={`/battle/${gameId}`}>↩️</Button>
@@ -1028,6 +1128,41 @@ app.hono.get('/image/vs/test', async (c) => {
   }
 });
 
+app.hono.get('/image/find-battle-list', async (c) => {
+  const battles = await getBattlesByStatus('waiting');
+  if (battles.length === 0) {
+    return c.newResponse("No battles found", 404);
+  }
+  
+  try {
+    const image = await generateBattleListV0(battles as any);
+    return c.newResponse(image, 200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'max-age=0', //try no-cache later
+    });
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return c.newResponse("Error generating image", 500);
+  }
+});
+
+app.hono.get('/image/last-turn-log/:gameId', async (c) => {
+  const gameId = c.req.param('gameId') as string;
+  const battle: any = await getBattleById(Number(gameId));
+  const battleLog = battle.battle_log;
+
+  try {
+    const image = await generateLastTurnBattleLog(handleFrameLog(battleLog, battle.current_turn));
+    return c.newResponse(image, 200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'max-age=0', //try no-cache later
+    });
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return c.newResponse("Error generating image", 500);
+  }
+});
+
 app.hono.get('/image/vs/:gameId/user/:userFid', async (c) => {
   const battle: any = await getBattleById(Number(c.req.param('gameId')));
 
@@ -1174,6 +1309,27 @@ app.hono.get('/image/fight/:gameId/user/:userFid', async (c) => {
     return c.newResponse(image, 200, {
       'Content-Type': 'image/png',
       'Cache-Control': 'max-age=0', //try no-cache later
+    });
+  } catch (error) {
+    console.error("Error generating image:", error);
+    return c.newResponse("Error generating image", 500);
+  }
+});
+
+app.hono.get('/image/battlelist/:p1/:p2/:p3/:fid', async (c) => {
+  const fid = Number(c.req.param('fid'));
+  const { pfp_url, userName } = await getFarcasterUserInfo(fid);
+
+  try {
+    const p1 = Number(c.req.param('p1'));
+    const p2 = Number(c.req.param('p2'));
+    const p3 = Number(c.req.param('p3'));
+
+    const image = await generateBattleList([p1,p2,p3], pfp_url, userName);
+
+    return c.newResponse(image, 200, {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'max-age=0', 
     });
   } catch (error) {
     console.error("Error generating image:", error);

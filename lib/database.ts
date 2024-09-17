@@ -84,7 +84,7 @@ export const createBattle = async (maker: number, maker_pokemons: number[], isCo
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ maker, maker_pokemons: JSON.stringify(maker_pokemons), isCompetitive: isCompetitive ? 1 : 0 })
+      body: JSON.stringify({ maker, maker_pokemons: JSON.stringify(maker_pokemons), is_competitive: isCompetitive ? 1 : 0 })
     })
   
     if(response.ok) {
@@ -101,6 +101,13 @@ export const createBattle = async (maker: number, maker_pokemons: number[], isCo
   } else {
     return "Already creating battle";
   }
+}
+
+export const getBattlesByStatus = async (status: string) => {
+  const response = await fetch(`${BACKEND_URL}/get/${status}`);
+  const data = await response.json();
+  // TODO: handle other battle cases
+  return data.battles as Battle[];
 }
 
 let isJoiningBattle = false;
@@ -185,4 +192,12 @@ export const makeMove = async (battleId: number, userFid: number, move: number) 
   } else {
     return "Failed to make move";
   }
+}
+
+export const getOpenBattles = async () => {
+  const response = await fetch(`${BACKEND_URL}/get/waiting`);
+
+  const data = await response.json();
+
+  return data.battles as number[];
 }

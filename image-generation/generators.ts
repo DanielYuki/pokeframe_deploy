@@ -6,6 +6,7 @@ import { getPokemonTypeColor } from "./pkmTypeColor.js";
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+// import { handle } from "frog/vercel";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -235,6 +236,142 @@ export const generateWaitingRoom = async (
   }
 }
 
+export const generateBattleListV0 = async (data: { battles: any[] }) => {
+  try {
+    const { battles } = data;
+
+    if (!Array.isArray(battles)) {
+      throw new Error('Invalid data: battles must be an array.');
+    }
+
+    const ComponentsArray: sharp.OverlayOptions[] = [];
+
+    // Load the base image
+    const baseImageBuffer = await sharp(join(__dirname, '../public/images/battle-scenes/0.png')) //TODO: Change for the correct image
+      .resize(600, 600)
+      .png()
+      .toBuffer();
+
+    for (const [index, battle] of battles.entries()) {
+      const battleId = battle.id;
+      const maker = battle.maker;
+      const makerPokemons = JSON.parse(battle.maker_pokemons);
+      const pokemonIds = makerPokemons.map((pokemon: { id: number }) => pokemon.id);
+      const isCompetitive = battle.is_competitive ? 'Competitive' : 'Casual';
+
+      console.log(pokemonIds); // [1, 2, 3]
+
+      // Create SVG for each battle property
+      const makerSVG = `
+        <svg width="600" height="50">
+          <text x="10" y="40" font-size="30" fill="white">${maker}</text>
+        </svg>
+        `;// TODO: Change for the user name
+
+      const isCompetitiveSVG = `
+      <svg width="600" height="50">
+      <text x="10" y="40" font-size="30" fill="white">${isCompetitive}</text>
+      </svg>
+      `;
+      const battleIdSVG = `
+        <svg width="600" height="50">
+          <text x="10" y="40" font-size="30" fill="white">${battleId}</text>
+        </svg>
+        `;
+      
+      const usr1ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/icons/${pokemonIds[0]}.png`))
+        .resize(100, 100)
+        .png()
+        .toBuffer();
+      const usr2ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/icons/${pokemonIds[1]}.png`))
+        .resize(100, 100)
+        .png()
+        .toBuffer();
+      const usr3ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/icons/${pokemonIds[2]}.png`))
+        .resize(100, 100)
+        .png()
+        .toBuffer();
+
+      // Calculate the vertical position for each block
+      const verticalOffset = 50 + (50 * index);
+
+      // Add components to the array with calculated positions
+      ComponentsArray.push({ input: Buffer.from(makerSVG), top: verticalOffset, left: 30 });
+      ComponentsArray.push({ input: usr1ImageBuffer, top: verticalOffset - 50, left: 200 });
+      ComponentsArray.push({ input: usr2ImageBuffer, top: verticalOffset - 50, left: 250 });
+      ComponentsArray.push({ input: usr3ImageBuffer, top: verticalOffset - 50, left: 300 });
+      ComponentsArray.push({ input: Buffer.from(isCompetitiveSVG), top: verticalOffset, left: 400 });
+      ComponentsArray.push({ input: Buffer.from(battleIdSVG), top: verticalOffset, left: 550 });
+    }
+
+    // Composite the final image
+    const finalImage = await sharp(baseImageBuffer)
+      .composite(ComponentsArray)
+      .png()
+      .toBuffer();
+
+    return finalImage;
+  } catch (error) {
+    console.error('Error during battle checkout generation:', error);
+    throw error;
+  }
+};
+
+export const generateLastTurnBattleLog = async (handleFrameLog: string[]) => {
+  try {
+    if (!Array.isArray(handleFrameLog)) {
+      throw new Error('Invalid data: battle log must be an array.');
+    }
+
+    const ComponentsArray: sharp.OverlayOptions[] = [];
+
+    console.log(handleFrameLog);
+
+    // Load the base image
+    const baseImageBuffer = await sharp(join(__dirname, '../public/images/battle-scenes/0.png')) //TODO: Change for the correct image
+      .resize(600, 600)
+      .png()
+      .toBuffer();
+    
+    const battleLogHeader = `
+      <svg width="600" height="50">
+        <text x="10" y="40" font-size="30" fill="white">LAST TURN BATTLE LOG</text>
+      </svg>
+    `;
+
+    ComponentsArray.push({ input: Buffer.from(battleLogHeader), top: 10, left: 10 });
+
+    if(handleFrameLog.length != 0) {
+      for (const [index, log] of handleFrameLog.entries()) {
+        
+        const battleLogText = `
+        <svg width="600" height="50">
+          <text x="10" y="40" font-size="30" fill="white">${log}</text>
+        </svg>
+        `;
+
+      // Calculate the vertical position for each block
+      const verticalOffset = 50 + (50 * index);
+
+      // Add components to the array with calculated positions
+      ComponentsArray.push({ input: Buffer.from(battleLogText), top: verticalOffset, left: 10 });
+    }
+  }
+    
+    // Composite the final image
+    const finalImage = await sharp(baseImageBuffer)
+      .composite(ComponentsArray)
+      .png()
+      .toBuffer();
+
+    return finalImage;
+  } catch (error) {
+    console.error('Error during last turn battle log generation:', error);
+    throw error;
+  }
+}
+
+
 function prettyName(inputString: string): string {
   let lowerString = inputString.toLowerCase();
   let resultString = lowerString.charAt(0).toUpperCase() + lowerString.slice(1);
@@ -410,6 +547,75 @@ export const generatePokemonMenu = async (
   return finalImage;
   } catch(error) {
       console.error("Error during fight menu generation:", error);
+      throw error;
+  }
+}
+
+export const generateBattleList = async (
+  pokemonIds: number[],
+  profilePicURL: string,
+  userName: string,
+) => {
+  try {
+  const ComponentsArray = [];
+
+  const challengerName = `
+    <svg width="600" height="50">
+      <text x="10" y="40" font-size="36" fill="white">Trainer ${userName} is ready for a battle</text>
+    </svg>
+  `;
+
+  const pfpSize = 170;
+  const circleMask = Buffer.from(
+    `<svg><circle cx="${pfpSize / 2}" cy="${pfpSize / 2}" r="${
+      pfpSize / 2
+    }" /></svg>`,
+  );
+
+  const response = await fetch(profilePicURL);
+  const blob = await response.blob();
+  const arrayBuffer = await blob.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const profileBuffer = await sharp(buffer)
+  .resize(pfpSize, pfpSize)
+  .composite([{ input: circleMask, blend: 'dest-in' }])
+  .png()
+  .toBuffer();
+  
+  const baseImageBuffer = await sharp(join(__dirname, '../public/images/battle-oracle-base.png'))
+  .resize(600, 600)
+  .png()
+  .toBuffer();
+
+  const pokemon1ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${pokemonIds[0]}.png`))
+  .resize(180, 180)
+  .png()
+  .toBuffer();
+
+  const pokemon2ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${pokemonIds[1]}.png`))
+  .resize(200, 200)
+  .png()
+  .toBuffer();
+
+  const pokemon3ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${pokemonIds[2]}.png`))
+  .resize(180, 180)
+  .png()
+  .toBuffer();
+  
+  ComponentsArray.push({input: Buffer.from(challengerName), top: 35, left: 20});
+  ComponentsArray.push({input: profileBuffer, top: 97, left: 215});
+  ComponentsArray.push({input: pokemon1ImageBuffer, top: 290, left: 70});
+  ComponentsArray.push({input: pokemon2ImageBuffer, top: 290, left: 208});
+  ComponentsArray.push({input: pokemon3ImageBuffer, top: 290, left: 377});
+  const finalImage = await sharp(baseImageBuffer)
+  .composite(ComponentsArray)
+  .jpeg()
+  .toBuffer();
+
+  return finalImage;
+  } catch(error) {
+      console.error("Error during battle checkout generation:", error);
       throw error;
   }
 }
