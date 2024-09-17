@@ -785,7 +785,7 @@ app.frame('/loading', async (c) => {
 
         return c.res({
           title,
-          image: `/images/welcome.png`,
+          image: `/images/catch.png`,
           imageAspectRatio: '1:1',
           intents: [
             <Button action={`/finish-mint`}>CATCH</Button>,
@@ -820,7 +820,7 @@ app.frame('/finish-mint', async (c) => {
   if (pokemonId == 0) {
     return c.res({
       title,
-      image: '/images/ok.png',
+      image: '/images/loading.gif',
       imageAspectRatio: '1:1',
       intents: [
         <Button action={`/finish-mint`}>REFRESH 🔄️</Button>,
@@ -834,7 +834,7 @@ app.frame('/finish-mint', async (c) => {
 
   return c.res({
     title,
-    image: `/images/winner.png`,
+    image: `/images/checkout-mint.png`,
     imageAspectRatio: '1:1',
     intents: [
       <Button action={`/gotcha/${pokemonId}`}>CHECK IT OUT!!</Button>,
