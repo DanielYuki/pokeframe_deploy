@@ -472,17 +472,37 @@ export const generatePokemonCard = async (
   .png()
   .toBuffer();
 
-  const pokemon = `
-    <svg width="248" height="65">
-      <text x="0" y="48" text-anchor="left" font-weight="bold" font-size="45" fill="white">${prettyName(pokemonName)}</text>
-    </svg>        
-    `
-
-  const id = `
-    <svg width="248" height="65">
-      <text x="0" y="48" text-anchor="left" font-weight="bold" font-size="45" fill="white">#${pokemonId}</text>
-    </svg>        
-  `
+    const pokemon = await sharp({
+      text: {
+        text: `<span foreground="white" letter_spacing="1000">${prettyName(pokemonName)}</span>`,
+        font: 'Handjet',
+        fontfile: './public/fonts/handjet.ttf',
+        rgba: true,
+        width: 248,
+        height: 65,
+        align: 'left',
+      },
+    })
+    .png()
+    .toBuffer()
+  // const id = `
+  //   <svg width="248" height="65">
+  //     <text x="0" y="48" text-anchor="left" font-weight="bold" font-size="45" fill="white">#${pokemonId}</text>
+  //   </svg>        
+  // `
+  const id = await sharp({
+    text: {
+      text: `<span foreground="white" letter_spacing="1000">#${(pokemonId)}</span>`,
+      font: 'Handjet',
+      fontfile: './public/fonts/handjet.ttf',
+      rgba: true,
+      width: 248,
+      height: 48,
+      align: 'left',
+    },
+  })
+  .png()
+  .toBuffer()
 
   const statsBar = ((stats: number) => {
     return `
@@ -501,17 +521,31 @@ export const generatePokemonCard = async (
     `
   })
 
-  const typeText = `
-  <svg width="248" height="65">
-    <text x="120" y="48" text-anchor="middle" font-weight="bold" font-size="22" fill="white">${(pokemonType).toUpperCase()}</text>  </svg>        
-  `
+  // const typeText = `
+  // <svg width="248" height="65">
+  //   <text x="120" y="48" text-anchor="middle" font-weight="bold" font-size="22" fill="white">${(pokemonType).toUpperCase()}</text>  </svg>        
+  // `
+
+  const typeText = await sharp({
+    text: {
+      text: `<span foreground="white" letter_spacing="1000">${(pokemonType).toUpperCase()}</span>`,
+      font: 'Handjet',
+      fontfile: './public/fonts/handjet.ttf',
+      rgba: true,
+      width: 154,
+      height: 22,
+      align: 'center',
+    },
+  })
+  .png()
+  .toBuffer()
 
   ComponentsArray.push({input: usr1ImageBuffer, top: 160, left: 0});
   ComponentsArray.push({input: usr2ImageBuffer, top: 490, left: 27});
   ComponentsArray.push({input: usr3ImageBuffer, top: 490, left: 470});
-  ComponentsArray.push({input: Buffer.from(pokemon), top: 46, left: 328});
+  ComponentsArray.push({input: pokemon, top: 46, left: 328});
   ComponentsArray.push({input: Buffer.from(pokeType(pokemonType)), top: 140, left: 328});
-  ComponentsArray.push({input: Buffer.from(typeText), top: 130, left: 285});
+  ComponentsArray.push({input: (typeText), top: 159, left: 366});
   ComponentsArray.push({input: Buffer.from(id), top: 46, left: 20});
   ComponentsArray.push({input: Buffer.from(statsBar(pokemonHp)), top: 248, left: 412});
   ComponentsArray.push({input: Buffer.from(statsBar(pokemonAtk)), top: 297, left: 412});
