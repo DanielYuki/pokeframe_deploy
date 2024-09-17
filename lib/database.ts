@@ -93,6 +93,13 @@ export const createBattle = async (maker: number, maker_pokemons: number[], isCo
   }
 }
 
+export const getBattlesByStatus = async (status: string) => {
+  const response = await fetch(`${BACKEND_URL}/get/${status}`);
+  const data = await response.json();
+  // TODO: handle other battle cases
+  return data as Battle[];
+}
+
 let isJoiningBattle = false;
 
 export const joinBattle = async (battleId: number, taker: number, taker_pokemons: number[]) => {
