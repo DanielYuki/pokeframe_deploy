@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { Attack } from "../types/types.js";
+import { Attack, Pokemon } from "../types/types.js";
 
 import { attackType, hpHp, hpSVG, moves, moves2, pokemonSVG, statsBox1, statsBox2, statusPokemon, typeBox, typeBox2 } from "./functions.js";
 import { getPokemonTypeColor } from "./pkmTypeColor.js";
@@ -224,6 +224,67 @@ export const generateWaitingRoom = async (
   .toBuffer();
 
   ComponentsArray.push({input: usr1ImageBuffer, top: 324, left: 48});
+
+  const finalImage = await sharp(baseImageBuffer)
+  .composite(ComponentsArray)
+  .png()
+  .toBuffer();
+
+  return finalImage;
+  } catch(error) {
+      console.error("Error during battle checkout generation:", error);
+      throw error;
+  }
+}
+
+export const generateBattleReady = async (
+  maker_pokemons: Pokemon[],
+  taker_pokemons: Pokemon[]
+) => {
+  try {
+  const ComponentsArray = [];
+  
+  const baseImageBuffer = await sharp(join(__dirname, '../public/images/battle-ready.png'))
+  .resize(600, 600)
+  .png()
+  .toBuffer();
+
+  const usr1P1ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${maker_pokemons[0].id}.png`))
+  .resize(170, 170)
+  .png()
+  .toBuffer();
+
+  const usr1P2ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${maker_pokemons[1].id}.png`))
+  .resize(170, 170)
+  .png()
+  .toBuffer();
+
+  const usr1P3ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${maker_pokemons[2].id}.png`))
+  .resize(160, 160)
+  .png()
+  .toBuffer();
+
+  const usr2P1ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${taker_pokemons[0].id}.png`))
+  .resize(160, 160)
+  .png()
+  .toBuffer();
+
+  const usr2P2ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${taker_pokemons[1].id}.png`))
+  .resize(160, 160)
+  .png()
+  .toBuffer();
+
+  const usr2P3ImageBuffer = await sharp(join(__dirname, `../public/images/pokemons/${taker_pokemons[2].id}.png`))
+  .resize(160, 160)
+  .png()
+  .toBuffer();
+
+  ComponentsArray.push({input: usr1P1ImageBuffer, top: 23, left: 10});
+  ComponentsArray.push({input: usr1P2ImageBuffer, top: 23, left: 214});
+  ComponentsArray.push({input: usr1P3ImageBuffer, top: 243, left: 10});
+  ComponentsArray.push({input: usr2P1ImageBuffer, top: 390, left: 170});
+  ComponentsArray.push({input: usr2P2ImageBuffer, top: 390, left: 390});
+  ComponentsArray.push({input: usr2P3ImageBuffer, top: 193, left: 390});
 
   const finalImage = await sharp(baseImageBuffer)
   .composite(ComponentsArray)
