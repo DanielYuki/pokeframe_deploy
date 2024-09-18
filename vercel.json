@@ -6,7 +6,7 @@
       }
     },
     "functions": {
-      "image-generation/generators.ts": {
+      "api/index.tsx": {
         "includeFiles": "./public/fonts/**"
       }
     }

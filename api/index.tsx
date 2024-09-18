@@ -15,6 +15,10 @@ import { validateFramesPost } from '@xmtp/frames-validator';
 import { Context, Next } from 'hono';
 import { getPokemonTypeColor } from '../image-generation/pkmTypeColor.js';
 import { fetchTopContributors } from '../lib/nanograph.js';
+import path from 'path';
+
+path.resolve(process.cwd(), 'fonts', 'fonts.conf')
+path.resolve(process.cwd(), 'fonts', 'handjet.ttf')
 
 type State = {
   verifiedAddresses?: `0x${string}`[];
