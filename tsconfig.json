@@ -20,9 +20,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "types": ["node"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
-
+    "outDir": "dist",
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
