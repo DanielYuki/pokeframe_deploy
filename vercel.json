@@ -4,5 +4,10 @@
         "main": false,
         "master": true
       }
+    },
+    "functions": {
+      "api/index.tsx": {
+        "includeFiles": "./public/fonts/**"
+      }
     }
 }
