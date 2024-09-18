@@ -4,5 +4,10 @@
         "main": false,
         "master": true
       }
+    },
+    "functions": {
+      "image-generation/generators.ts": {
+        "includeFiles": "./public/fonts/**"
+      }
     }
 }

@@ -480,7 +480,7 @@ export const generatePokemonCard = async (
       text: {
         text: `<span foreground="white" letter_spacing="1000">${prettyName(pokemonName)}</span>`,
         font: 'Handjet',
-        fontfile: './handjet.ttf',
+        fontfile: './public/fonts/handjet.ttf',
         rgba: true,
         width: 248,
         height: 65,
