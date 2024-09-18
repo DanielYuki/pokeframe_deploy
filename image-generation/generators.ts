@@ -8,6 +8,10 @@ import { getFarcasterUserInfo } from "../lib/lum0x.js";
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 // import { handle } from "frog/vercel";
+import path from 'path';
+
+path.resolve(process.cwd(), 'fonts', 'fonts.conf')
+path.resolve(process.cwd(), 'fonts', 'handjet.ttf')
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
