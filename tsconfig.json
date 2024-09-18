@@ -21,7 +21,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "frog/jsx",
+    "jsxImportSource": "hono/jsx",
 
     /* Linting */
     "strict": true,
